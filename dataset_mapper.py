@@ -65,11 +65,12 @@ class CustomDatasetMapper(DatasetMapper):
             'dataset_sizes' : cfg.DATALOADER.DATASET_INPUT_SIZE,
         })
         if ret['use_CopyAndPaste'] and is_train:
+            # --------------------------------------- #
+            # TODO
+            # 加入ImageNet信息
+            # --------------------------------------- #
             if cfg.INPUT.CUSTOM_AUG == 'CopyAndPaste21K':
-                dataset_scales = cfg.DATALOADER.DATASET_INPUT_SCALE
-                dataset_sizes = cfg.DATALOADER.DATASET_INPUT_SIZE
-                # 改下面的，one dataset, len = 1
-                ret['dataset_augs'] = 'copyandpaste'
+                ret['ImageNet'] = 'copyandpaste'
             else:
                 assert cfg.INPUT.CUSTOM_AUG == 'ResizeShortestEdge'
                 min_sizes = cfg.DATALOADER.DATASET_MIN_SIZES
@@ -114,7 +115,7 @@ class CustomDatasetMapper(DatasetMapper):
 
             bbox_transformed = np.asarray([obj['bbox'] for obj in annos])
 
-            ins_cls = np.array([obj['category_id'].reshape(-1, 2) for obj in annos])
+            ins_cls = np.array([obj['category_id'] for obj in annos])
 
             new_image = np.zeros((self.dataset_size, self.dataset_size, 3))
             new_seg = np.zeros((self.dataset_size, self.dataset_size))
@@ -123,8 +124,8 @@ class CustomDatasetMapper(DatasetMapper):
             if new_h <= self.dataset_size and new_w <= self.dataset_size:
                 local_h = random.randint(0, self.dataset_size - new_h)
                 local_w = random.randint(0, self.dataset_size - new_w)
-                new_image[local_h:local_h+new_h, local_w+new_w, :] += image_transformed
-                new_seg[local_h:local_h+new_h, local_w+new_w] += seg_transformed
+                new_image[local_h:local_h+new_h, local_w:local_w+new_w, :] += image_transformed
+                new_seg[local_h:local_h+new_h, local_w:local_w+new_w] += seg_transformed
                 bbox_transformed[:, [0, 2]] += local_w
                 bbox_transformed[:, [1, 3]] += local_h
 
@@ -137,7 +138,7 @@ class CustomDatasetMapper(DatasetMapper):
                 temp_image = image_transformed[offset_h:offset_h + self.dataset_size, offset_w:offset_w + self.dataset_size, :]
                 temp_seg = seg_transformed[offset_h:offset_h + self.dataset_size, offset_w:offset_w + self.dataset_size]
                 new_image[:temp_image.shape[0], :temp_image.shape[1], :] += temp_image
-                new_seg[:temp_seg.shape[0], :temp_seg.shape[1]] += temp_image
+                new_seg[:temp_seg.shape[0], :temp_seg.shape[1]] += temp_seg
                 bbox_transformed[:, [0, 2]] -= offset_w
                 bbox_transformed[:, [1, 3]] -= offset_h
                 bbox_transformed = np.clip(bbox_transformed, 0, self.dataset_size)
@@ -146,7 +147,7 @@ class CustomDatasetMapper(DatasetMapper):
                 mask = (bbox_transformed[:, 2] - bbox_transformed[:, 0]) * (bbox_transformed[:, 3] - bbox_transformed[:, 1]) > 0
                 bbox_transformed = bbox_transformed[mask]
                 ins_cls = ins_cls[mask]
-                return np.transpose(new_image, (2, 0, 1)), bbox_transformed, new_seg, ins_cls
+            return np.transpose(new_image, (2, 0, 1)), bbox_transformed, new_seg, ins_cls
         
         # ImageNet_data reshape
         else:
@@ -260,4 +261,6 @@ class CustomDatasetMapper(DatasetMapper):
         dataset_dict["instances"] = utils.filter_empty_instances(instances)
 
         dataset_dict["image"] = torch.as_tensor(np.ascontiguousarray(new_image))
+        # TODO
+        # more info to add
         return dataset_dict
