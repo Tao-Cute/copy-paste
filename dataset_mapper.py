@@ -161,11 +161,12 @@ class CustomDatasetMapper(DatasetMapper):
             image_transformed = input.image  # new image
             seg_transformed = input.sem_seg
             bbox_transformed = input.boxes
-
-            new_image = image_transformed[bbox_transformed[3]:bbox_transformed[1] + 1, bbox_transformed[2]:bbox_transformed[0] + 1,:]
-            new_seg = seg_transformed[bbox_transformed[3]:bbox_transformed[1] + 1, bbox_transformed[2]:bbox_transformed[0] + 1]
-            bbox_transformed[0, 1] = 0
-            bbox_transformed[2, 3] = new_image.shape[:2]
+            
+            # ？？
+            new_image = image_transformed[int(bbox_transformed[0][1]):int(bbox_transformed[0][3] + 1), int(bbox_transformed[0][0]):int(bbox_transformed[0][2] + 1),:]
+            new_seg = seg_transformed[int(bbox_transformed[0][1]):int(bbox_transformed[0][3] + 1), int(bbox_transformed[0][0]):int(bbox_transformed[0][2] + 1)]
+            bbox_transformed[:,[0, 1]] = 0
+            bbox_transformed[:,[2, 3]] = new_image.shape[:2]
             
             return np.transpose(new_image, (2, 0, 1)), bbox_transformed, new_seg
 
@@ -227,7 +228,8 @@ class CustomDatasetMapper(DatasetMapper):
             copy_image, image_box, image_seg = self.reshape_image(ori_input=copy_image, seg=seg, bbox=image_box)
 
             # get mask and seg img
-            mask = image_seg[image_seg > 0] = 1
+            image_seg[image_seg > 0] = 1
+            mask = image_seg
             temp_image = copy_image * mask
 
             # get a random place to put
@@ -238,8 +240,8 @@ class CustomDatasetMapper(DatasetMapper):
             new_image[:, tmp_y:(tmp_y + image_seg.shape[0]), tmp_x:(tmp_x + image_seg.shape[1])] *= 1 - mask
             new_image[:, tmp_y:(tmp_y + image_seg.shape[0]), tmp_x:(tmp_x + image_seg.shape[1])] += temp_image
 
-            image_box[[0, 2]] += tmp_x
-            image_box[[1, 3]] += tmp_y
+            image_box[:, [0, 2]] += tmp_x
+            image_box[:, [1, 3]] += tmp_y
             append_box.append(image_box)
         
         append_box = np.asarray(append_box)
